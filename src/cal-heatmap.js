@@ -1468,10 +1468,10 @@ CalHeatMap.prototype = {
 	/**
 	 * Sprintf like function.
 	 * Replaces placeholders {0} in string with values from provided object.
-	 * 
+	 *
 	 * @param string formatted String containing placeholders.
 	 * @param object args Object with properties to replace placeholders in string.
-	 * 
+	 *
 	 * @return String
 	 */
 	formatStringWithObject: function (formatted, args) {
@@ -3197,6 +3197,32 @@ Legend.prototype.redraw = function(width) {
 		.call(legendCellLayout)
 		.attr("class", function(d){ return calendar.Legend.getClass(d, (calendar.legendScale === null)); })
 		.attr("fill-opacity", 0)
+		.on('mouseover', function(d) {
+			if (calendar.options.tooltip) {
+				calendar.tooltip
+					.html(d3.select(this).select('title').text())
+					.attr("style", "display: block;")
+				;
+
+				var tooltipPositionX = 0;
+				var tooltipPositionY = 0;
+
+				// Offset by the legend position
+				tooltipPositionX += getLegendXPosition() + parseInt(this.getAttribute('x'), 10) - (120 / 2) - (this.getAttribute('width') / 2);
+				tooltipPositionY += parseInt(getLegendYPosition(), 10) - 40;
+
+				calendar.tooltip.attr("style",
+					"display: block; " +
+					"left: " + tooltipPositionX + "px; " +
+					"top: " + tooltipPositionY + "px;")
+				;
+			}
+		})
+		.on('mouseout', function(d) {
+			calendar.tooltip
+				.attr("style", "display:none")
+				.html("");
+		})
 		.call(function(selection) {
 			if (calendar.legendScale !== null && options.legendColors !== null && options.legendColors.hasOwnProperty("base")) {
 				selection.attr("fill", options.legendColors.base);

@@ -120,6 +120,9 @@ var CalHeatMap = function() {
 			height: null
 		},
 
+		// Optional format function for values displayed when hovering subDomains.
+		valueFormatter: null,
+
 		// ================================================
 		// LEGEND
 		// ================================================
@@ -219,6 +222,10 @@ var CalHeatMap = function() {
 			inner: "between {down} and {up} {name}",
 			upper: "more than {max} {name}"
 		},
+
+		// Formatting of the value displayed when hovering a legend cell,
+		// useful for rounding values/showing units/etc.
+		legendValueFormatter: function(v) { return v; },
 
 		// Animation duration, in ms
 		animationDuration: 500,
@@ -1666,8 +1673,10 @@ CalHeatMap.prototype = {
 				value = 0;
 			}
 
+			var valueFormatter = this.options.valueFormatter || this.formatNumber;
+
 			return this.formatStringWithObject(this.options.subDomainTitleFormat.filled, {
-				count: this.formatNumber(value),
+				count: valueFormatter.call(this, value),
 				name: this.options.itemName[(value !== 1 ? 1: 0)],
 				connector: this._domainType[this.options.subDomain].format.connector,
 				date: this.formatDate(new Date(d.t), this.options.subDomainDateFormat)
@@ -3197,19 +3206,30 @@ Legend.prototype.redraw = function(width) {
 		.call(legendCellLayout)
 		.attr("class", function(d){ return calendar.Legend.getClass(d, (calendar.legendScale === null)); })
 		.attr("fill-opacity", 0)
-		.on('mouseover', function(d) {
+		.on('mouseover', function(d, i) {
 			if (calendar.options.tooltip) {
 				calendar.tooltip
-					.html(d3.select(this).select('title').text())
+					.html(legendOptionText(d, i))
 					.attr("style", "display: block;")
 				;
 
-				var tooltipPositionX = 0;
-				var tooltipPositionY = 0;
-
 				// Offset by the legend position
-				tooltipPositionX += getLegendXPosition() + parseInt(this.getAttribute('x'), 10) - (120 / 2) - (this.getAttribute('width') / 2);
-				tooltipPositionY += parseInt(getLegendYPosition(), 10) - 40;
+				var tooltipElement = calendar.tooltip[0][0];
+				var tooltipPositionX = getLegendXPosition();
+				var tooltipPositionY = getLegendYPosition();
+
+				// Offset by legendItem position
+				tooltipPositionX += parseInt(this.getAttribute('x'), 10);
+
+				// Offset by half the width of the tooltip
+				tooltipPositionX -= (tooltipElement.offsetWidth / 2);
+
+				// Offset by tooltip height
+				tooltipPositionY += - tooltipElement.offsetHeight;
+
+				// Offset by legendItem dimensions
+				tooltipPositionX += (this.getAttribute('width') / 2);
+				tooltipPositionY -=  (this.getAttribute('height') / 2);
 
 				calendar.tooltip.attr("style",
 					"display: block; " +
@@ -3264,26 +3284,27 @@ Legend.prototype.redraw = function(width) {
 		;
 	}
 
-	legendItem.select("title").text(function(d, i) {
+	var legendOptionText = function(d, i) {
 		if (i === 0) {
 			return calendar.formatStringWithObject(options.legendTitleFormat.lower, {
-				min: options.legend[i],
+				min: calendar.options.legendValueFormatter(options.legend[i]),
 				name: options.itemName[1]
 			});
 		} else if (i === _legend.length-1) {
 			return calendar.formatStringWithObject(options.legendTitleFormat.upper, {
-				max: options.legend[i-1],
+				max: calendar.options.legendValueFormatter(options.legend[i-1]),
 				name: options.itemName[1]
 			});
 		} else {
 			return calendar.formatStringWithObject(options.legendTitleFormat.inner, {
-				down: options.legend[i-1],
-				up: options.legend[i],
+				down: calendar.options.legendValueFormatter(options.legend[i-1]),
+				up: calendar.options.legendValueFormatter(options.legend[i]),
 				name: options.itemName[1]
 			});
 		}
-	})
-	;
+	};
+
+	legendItem.select("title").text(legendOptionText);
 
 	legend.transition().duration(options.animationDuration)
 		.attr("x", getLegendXPosition())
